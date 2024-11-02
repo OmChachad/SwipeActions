@@ -1282,6 +1282,7 @@ public extension AnyTransition {
             active: SwipeDeleteModifier(visibility: 0),
             identity: SwipeDeleteModifier(visibility: 1)
         )
+        .combined(with: .move(edge: .leading))
     }
 }
 
