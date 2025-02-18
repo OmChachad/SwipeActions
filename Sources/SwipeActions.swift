@@ -403,8 +403,19 @@ public struct SwipeView<Label, LeadingActions, TrailingActions>: View where Labe
         self.leadingActions = leadingActions
         self.trailingActions = trailingActions
     }
-
+    
     public var body: some View {
+        let dragGesture = DragGesture(minimumDistance: options.swipeMinimumDistance)
+                                .updating($currentlyDragging) { value, state, transaction in
+                                    state = true
+                                }
+                                .onChanged(onChanged)
+                                .onEnded(onEnded)
+                                .updatingVelocity($velocity)
+        
+        let tapGesture = TapGesture()
+                                .onEnded(reset)
+        
         HStack {
             label()
                 .offset(x: offset) /// Apply the offset here.
@@ -438,16 +449,10 @@ public struct SwipeView<Label, LeadingActions, TrailingActions>: View where Labe
         )
 
         // MARK: - Add gestures
-
-        .highPriorityGesture( /// Add the drag gesture.
-            DragGesture(minimumDistance: options.swipeMinimumDistance)
-                .updating($currentlyDragging) { value, state, transaction in
-                    state = true
-                }
-                .onChanged(onChanged)
-                .onEnded(onEnded)
-                .updatingVelocity($velocity),
-            including: options.swipeEnabled ? .all : .subviews /// Enable/disable swiping here.
+        .simultaneousGesture(dragGesture)
+        .highPriorityGesture(
+            tapGesture
+                .exclusively(before: dragGesture)
         )
         .onChange(of: currentlyDragging) { currentlyDragging in /// Detect gesture cancellations.
             if !currentlyDragging, let latestDragGestureValueBackup {
@@ -501,18 +506,22 @@ public struct SwipeView<Label, LeadingActions, TrailingActions>: View where Labe
         }
         .onChange(of: swipeViewGroupSelection.wrappedValue) { newValue in
             if swipeViewGroupSelection.wrappedValue != id {
-                currentSide = nil
-
-                if leadingState != .closed {
-                    leadingState = .closed
-                    close(velocity: 0)
-                }
-
-                if trailingState != .closed {
-                    trailingState = .closed
-                    close(velocity: 0)
-                }
+                reset()
             }
+        }
+    }
+    
+    func reset() {
+        currentSide = nil
+
+        if leadingState != .closed {
+            leadingState = .closed
+            close(velocity: 0)
+        }
+
+        if trailingState != .closed {
+            trailingState = .closed
+            close(velocity: 0)
         }
     }
 }
